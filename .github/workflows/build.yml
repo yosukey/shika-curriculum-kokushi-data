@@ -1,0 +1,101 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: D-EduViewer.exe
+          - os: macos-latest
+            artifact_name: D-EduViewer-macOS.zip
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install PySide6 pyinstaller
+
+      - name: Set version from tag
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "__version__ = \"${VERSION}\"" > viewer/version.py
+
+      - name: Generate JSONL from CSV
+        run: |
+          python scripts/csv_to_jsonl_r4.py
+          python scripts/csv_to_jsonl_h28.py
+          python scripts/csv_to_jsonl_kokushi.py
+
+      - name: Build with PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        run: >
+          pyinstaller --onefile --noconsole --name D-EduViewer
+          --icon "viewer/icon/icon.ico"
+          --add-data "viewer/data;data"
+          --add-data "viewer/pdf;pdf"
+          --add-data "viewer/icon/icon.png;icon"
+          viewer/viewer.py
+
+      - name: Build with PyInstaller (macOS)
+        if: runner.os == 'macOS'
+        run: >
+          pyinstaller --windowed --name D-EduViewer
+          --icon "viewer/icon/icon.icns"
+          --add-data "viewer/data:data"
+          --add-data "viewer/pdf:pdf"
+          --add-data "viewer/icon/icon.png:icon"
+          viewer/viewer.py
+
+      - name: Zip macOS app bundle
+        if: runner.os == 'macOS'
+        run: |
+          cd dist
+          zip -ry D-EduViewer-macOS.zip D-EduViewer.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: D-EduViewer-${{ runner.os }}
+          path: dist/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir release
+          cp artifacts/D-EduViewer-Windows/D-EduViewer.exe \
+             release/D-EduViewer-win-x86_64-${VERSION}.exe
+          cp artifacts/D-EduViewer-macOS/D-EduViewer-macOS.zip \
+             release/D-EduViewer-macOS-${VERSION}.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/D-EduViewer-win-x86_64-*.exe
+            release/D-EduViewer-macOS-*.zip
