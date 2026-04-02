@@ -532,7 +532,84 @@ KOKUSHI_R5_CONFIG = DatasetConfig(
 
 
 # ---------------------------------------------------------------------------
+# 国試出題基準 R9 設定
+# ---------------------------------------------------------------------------
+
+KOKUSHI_R9_CONFIG = DatasetConfig(
+    name="国試出題基準（R9年度版）",
+    filename="data/shika_kokushi_r9_kijun.jsonl",
+    theme={
+        "header_bg": "#6C3483",
+        "header_fg": "#FFFFFF",
+        "alt_row": "#F5EEF8",
+        "selection": "#D2B4DE",
+        "hover": "#E8DAEF",
+    },
+    columns=[
+        ColumnDef(key="id", header="ID", width=90, align="left",
+                  sort_key=_kokushi_id_sort),
+        ColumnDef(key="domain", header="領域", width=60, align="center",
+                  sort_key=lambda r: _kokushi_domain_sort_key(r.get("domain", ""))),
+        ColumnDef(key="dai_code", header="大項目ID", hidden=True, width=55),
+        ColumnDef(key="dai_title", header="大項目", width=240, align="left",
+                  display=_kokushi_dai_title_display),
+        ColumnDef(key="chu_code", header="中項目ID", hidden=True, width=55),
+        ColumnDef(key="chu_title", header="中項目", width=200, align="left",
+                  display=_kokushi_chu_title_display),
+        ColumnDef(key="sho_code", header="小項目ID", hidden=True, width=65),
+        ColumnDef(key="sho_title", header="小項目", width=400, stretch=True,
+                  align="left", display=_kokushi_sho_title_display),
+        ColumnDef(key="remarks", header="備考", width=150, align="left"),
+        ColumnDef(key="pdf_page", header="ページ", hidden=True, width=55),
+    ],
+    hierarchy=[
+        HierarchyLevel(
+            code_field="domain", title_field="domain",
+            label=lambda r: r["domain"],
+            sort_key=_kokushi_domain_sort_key,
+        ),
+        HierarchyLevel(
+            code_field="dai_code", title_field="dai_title",
+            label=lambda r: f"{r['dai_code']} {r['dai_title']}",
+        ),
+        HierarchyLevel(
+            code_field="chu_code", title_field="chu_title",
+            label=lambda r: f"{r['chu_code']} {r['chu_title']}",
+        ),
+    ],
+    leaf_label=_kokushi_leaf_label,
+    leaf_remarks=lambda r: r.get("remarks", ""),
+    field_mappings=[
+        FieldMapping("id", "id"),
+        FieldMapping("domain", "domain.title"),
+        FieldMapping("dai_code", "dai.code"),
+        FieldMapping("dai_title", "dai.title"),
+        FieldMapping("chu_code", "chu.code"),
+        FieldMapping("chu_title", "chu.title"),
+        FieldMapping("sho_code", "sho.code"),
+        FieldMapping("sho_title", "sho.title", default=""),
+        FieldMapping("remarks", "remarks", default=""),
+        FieldMapping("pdf_file", "source.pdf"),
+        FieldMapping("pdf_page", "source.page"),
+    ],
+    filters=[
+        FilterDef(code_field="domain", label="領域",
+                  min_width=120,
+                  sort_key=_kokushi_domain_sort_key),
+        FilterDef(code_field="dai_code", label="大項目",
+                  title_field="dai_title", min_width=250),
+        FilterDef(code_field="chu_code", label="中項目",
+                  title_field="chu_title", min_width=250),
+    ],
+    source_urls=[
+        ("歯科医師国家試験出題基準（令和9年版）",
+         "https://www.mhlw.go.jp/stf/shingi2/0000163627_00005.html"),
+    ],
+)
+
+
+# ---------------------------------------------------------------------------
 # 全データセット設定リスト
 # ---------------------------------------------------------------------------
 
-ALL_DATASETS: list[DatasetConfig] = [R4_CONFIG, H28_CONFIG, KOKUSHI_R5_CONFIG]
+ALL_DATASETS: list[DatasetConfig] = [R4_CONFIG, H28_CONFIG, KOKUSHI_R5_CONFIG, KOKUSHI_R9_CONFIG]
